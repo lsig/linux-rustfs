@@ -17,7 +17,7 @@ use kernel::folio::{Folio, PageCache};
 use kernel::fs::Kiocb;
 use kernel::fs::{file, File, FileSystem, Offset, Registration};
 use kernel::inode::{INode, INodeState, Mapper, Params, Type};
-use kernel::iov::IovIterDest;
+use kernel::iov::{IovIterDest, IovIterSource};
 use kernel::prelude::*;
 use kernel::sb::{New, SuperBlock, Type as SuperType};
 use kernel::time::UNIX_EPOCH;
@@ -280,6 +280,15 @@ impl file::Operations for RustEzFs {
         }
 
         Ok(())
+    }
+
+    fn write_iter(
+        kiocb: Kiocb<'_, <Self::FileSystem as FileSystem>::Data>,
+        _iov: &mut IovIterSource<'_>,
+    ) -> Result<usize> {
+        let inode = kiocb.file().inode();
+
+        Ok(0)
     }
 }
 

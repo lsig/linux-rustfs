@@ -10,6 +10,9 @@ use core::marker::PhantomData;
 use core::ptr::NonNull;
 use kernel::types::ForeignOwnable;
 
+use crate::fs::File;
+use crate::inode::INode;
+
 /// Wrapper for the kernel's `struct kiocb`.
 ///
 /// Currently this abstractions is incomplete and is essentially just a tuple containing a
@@ -46,12 +49,17 @@ impl<'a, T: ForeignOwnable> Kiocb<'a, T> {
     }
 
     /// Get the filesystem or driver specific data associated with the file.
-    pub fn file(&self) -> <T as ForeignOwnable>::Borrowed<'a> {
+    pub fn private_data(&self) -> <T as ForeignOwnable>::Borrowed<'a> {
         // SAFETY: We have shared access to this kiocb and hence the underlying file, so we can
         // read the file's private data.
         let private = unsafe { (*(*self.as_raw()).ki_filp).private_data };
         // SAFETY: The kiocb has shared access to the private data.
         unsafe { <T as ForeignOwnable>::borrow(private) }
+    }
+
+    pub fn file(&self) -> &File {
+        // SAFETY: file pointer should be valid (check)
+        unsafe { File::from_raw_file((*self.as_raw()).ki_filp) }
     }
 
     /// Gets the current value of `ki_pos`.
