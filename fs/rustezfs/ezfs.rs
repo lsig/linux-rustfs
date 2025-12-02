@@ -107,10 +107,7 @@ impl FileSystem for RustEzFs {
     const NAME: &'static CStr = c_str!("rustezfs");
     const SUPER_TYPE: SuperType = SuperType::BlockDev;
 
-    fn fill_super(
-        sb: &mut SuperBlock<Self, New>,
-        mapper: Option<Mapper<Self>>,
-    ) -> Result<Self::Data> {
+    fn fill_super(sb: &mut SuperBlock<Self, New>, mapper: Option<Mapper>) -> Result<Self::Data> {
         pr_info!("fill_super()\n");
         let Some(mapper) = mapper else {
             return Err(EINVAL);
@@ -301,7 +298,7 @@ impl iomap::Operations for RustEzFs {
         pr_info!("iomap_begin()\n");
 
         let sb = inode.super_block();
-        let ezfs_sb: Pin<&EzfsSuperblock> = sb.data();
+        let ezfs_sb = sb.data();
         let ezfs_inode = inode.data();
 
         let start_block: u64 = (pos >> sb.blocksize_bits()).try_into()?;
@@ -326,6 +323,8 @@ impl iomap::Operations for RustEzFs {
 
             // Invalid read, block does not belong to inode
             if ez_blk_num == 0 || start_block >= ez_blk_count {
+                // FIXME: Isn't this incorrect, null address is -1 maybe it just looks at the
+                // bytes 0xffff and not if it is signed or not
                 map.set_type(iomap::Type::Hole)
                     .set_addr(bindings::IOMAP_NULL_ADDR as u64);
                 return Ok(());
@@ -337,6 +336,8 @@ impl iomap::Operations for RustEzFs {
         };
 
         pr_info!("WRITING\n");
+
+        if (flags & iomap::flags::WRITE == 1) {}
 
         // // Shifted physical index
         // let phys_sidx: i64 = if ez_blk_num > 0 {

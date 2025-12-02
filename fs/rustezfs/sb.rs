@@ -47,14 +47,11 @@ pub(crate) struct EzfsSuperblock {
     pub(crate) free_data_blocks: Mutex<[u32; (EZFS_MAX_DATA_BLKS / 32) + 1]>,
     #[pin]
     pub(crate) zero_data_blocks: Mutex<[u8; (EZFS_MAX_DATA_BLKS / 32) + 1]>,
-    pub(crate) mapper: inode::Mapper<RustEzFs>,
+    pub(crate) mapper: inode::Mapper,
 }
 
 impl EzfsSuperblock {
-    pub(crate) fn new(
-        disk_sb: EzfsSuperblockDisk,
-        mapper: inode::Mapper<RustEzFs>,
-    ) -> impl PinInit<Self> {
+    pub(crate) fn new(disk_sb: EzfsSuperblockDisk, mapper: inode::Mapper) -> impl PinInit<Self> {
         pin_init!(Self {
             version: disk_sb.data.version,
             magic: disk_sb.data.magic,
