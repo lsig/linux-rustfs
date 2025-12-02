@@ -90,7 +90,7 @@ pub trait FileSystem {
 
     fn fill_super(
         sb: &mut SuperBlock<Self, sb::New>,
-        mapper: Option<inode::Mapper<Self>>, //TODO: Default type parameter should be UnspecifiedFS
+        mapper: Option<inode::Mapper>,
     ) -> Result<Self::Data>;
 
     /// Initialises and returns the root inode of the given superblock.

@@ -16,7 +16,7 @@ use crate::{
     fmt,
     fs::{FileSystem, Kiocb, Offset, UnspecifiedFS},
     inode::{self, INode, Ino},
-    iov::IovIterDest,
+    iov::{IovIterDest, IovIterSource},
     kernel::dentry::DEntry,
     sync::aref::{ARef, AlwaysRefCounted},
     types::{ForeignOwnable, Locked, NotThreadSafe, Opaque},
@@ -567,6 +567,13 @@ pub trait Operations {
         Err(EINVAL)
     }
 
+    fn write_iter(
+        _kiocb: Kiocb<'_, <Self::FileSystem as FileSystem>::Data>,
+        _iov: &mut IovIterSource<'_>,
+    ) -> Result<usize> {
+        Err(EINVAL)
+    }
+
     /// Seeks the file to the given offset.
     fn seek(_file: &File<Self::FileSystem>, _offset: Offset, _whence: Whence) -> Result<Offset> {
         Err(EINVAL)
@@ -617,15 +624,14 @@ impl<T: FileSystem + ?Sized> Ops<T> {
                 },
                 write: None,
                 read_iter: Some(Self::read_iter_callback),
-                // read_iter: Some(unsafe {bindings::generic_file_read_iter}),
-                write_iter: None,
+                write_iter: Some(Self::write_iter_callback),
                 iopoll: None,
                 iterate_shared: None,
                 poll: None,
                 unlocked_ioctl: None,
                 fop_flags: 0,
                 compat_ioctl: None,
-                mmap: Some(bindings::generic_file_mmap),
+                mmap: Some(bindings::generic_file_mmap), //TODO: Add callback
                 mmap_prepare: None,
                 open: None,
                 flush: None,
@@ -637,7 +643,7 @@ impl<T: FileSystem + ?Sized> Ops<T> {
                 check_flags: None,
                 flock: None,
                 splice_write: None,
-                splice_read: Some(bindings::filemap_splice_read),
+                splice_read: Some(bindings::filemap_splice_read), //TODO: Add callback
                 splice_eof: None,
                 setlease: None,
                 fallocate: None,
@@ -711,7 +717,22 @@ impl<T: FileSystem + ?Sized> Ops<T> {
                 iter: *mut bindings::iov_iter,
             ) -> isize {
                 pr_info!("read_iter_callback\n");
+                // FIXME: actually call read
                 return unsafe { bindings::generic_file_read_iter(kiocb, iter) };
+            }
+
+            unsafe extern "C" fn write_iter_callback(
+                kiocb_ptr: *mut bindings::kiocb,
+                iter_ptr: *mut bindings::iov_iter,
+            ) -> isize {
+                from_result(|| {
+                    // SAFETY: Kernel makes sure pointers are valid (check)
+                    let kiocb = unsafe { Kiocb::from_raw(kiocb_ptr) };
+                    let mut iter = unsafe { IovIterSource::from_raw(iter_ptr) };
+                    let write = T::write_iter(kiocb, &mut iter)?;
+
+                    Ok(isize::try_from(write)?)
+                })
             }
         }
         Self {
