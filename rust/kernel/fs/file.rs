@@ -624,7 +624,11 @@ impl<T: FileSystem + ?Sized> Ops<T> {
                 },
                 write: None,
                 read_iter: Some(Self::read_iter_callback),
-                write_iter: Some(Self::write_iter_callback),
+                write_iter: if T::HAS_WRITE_ITER {
+                    Some(Self::write_iter_callback)
+                } else {
+                    None
+                },
                 iopoll: None,
                 iterate_shared: None,
                 poll: None,
