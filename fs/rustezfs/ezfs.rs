@@ -598,10 +598,6 @@ impl iomap::Operations for RustEzFs {
         };
 
         match case_type {
-            WriteCase::NEW => {
-                pr_info!("adding to an empty file\n");
-                return Err(EIO);
-            }
             WriteCase::WITHIN => {}
             WriteCase::EXTEND => {
                 for i in ez_blk_count..blocks_needed {
@@ -611,7 +607,7 @@ impl iomap::Operations for RustEzFs {
 
                 map.set_flags(iomap::map_flags::NEW);
             }
-            WriteCase::MOVE => {
+            WriteCase::NEW | WriteCase::MOVE => {
                 // Let's try to find a region of sequential free blocks
                 // of size `blocks_needed` to move our file to
                 let mut curr_block = 0;
